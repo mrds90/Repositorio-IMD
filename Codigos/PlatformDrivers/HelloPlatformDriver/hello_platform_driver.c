@@ -4,6 +4,7 @@
 #include <linux/miscdevice.h>
 #include <linux/of.h>
 
+
 /******************************************************************************
    ******************* DEFINICION DE FILE OPERATIONS **************************
 ******************************************************************************/
@@ -53,7 +54,7 @@ static struct miscdevice helloworld_miscdevice =
 ******************************************************************************/
 
 /* Definicion de funcion probe() */
-static int __init my_probe(struct platform_device *pdev)
+static int my_probe(struct platform_device *pdev)
 {
     int ret_val;
 
@@ -67,13 +68,13 @@ static int __init my_probe(struct platform_device *pdev)
         return ret_val;
     }
 
-    pr_info("mydev: got minor %i\n",helloworld_miscdevice.minor);
+    pr_info("mydev: got minor %i\n", helloworld_miscdevice.minor);
 
     return 0;
 };
 
 /* Add remove() function */
-static int __exit my_remove(struct platform_device *pdev)
+static int my_remove(struct platform_device *pdev)
 {
     pr_info("my_remove() function is called.\n");
     misc_deregister(&helloworld_miscdevice);
