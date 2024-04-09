@@ -1,0 +1,1 @@
+8250.nr_uarts=1 console+ttyS0,115200 root=/dev/nfs ip=192.168.0.101 nfsroot=192.168.0.102:/home/marcos/dev_rpi3_64_glibc_labs/rootfs,vers=3 rw rootwait

@@ -6,11 +6,11 @@
 int main(void)
 {
     /* First you need run "mknod /dev/mydev c 202 0" to create /dev/mydev */
-    int my_dev = open("/dev/mydev", 0);
+    int my_dev = open("/dev/mse00", 0);
 
     if (my_dev < 0)
     {
-        perror("Fail to open device file: /dev/mydev.");
+        perror("Fail to open device file: /dev/mse00.");
     }
     else
     {
