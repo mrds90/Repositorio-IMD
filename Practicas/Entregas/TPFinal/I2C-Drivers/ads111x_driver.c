@@ -65,23 +65,27 @@ static int i2c_write_reg(struct i2c_client *client, const char *data, size_t len
 }
 
 /* User is reading data from /dev/msedrvXX */
-static ssize_t ads111x_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos) {
+static ssize_t ads111x_read(struct file *file, char __user *userbuf, size_t len, loff_t *ppos) {
 
     struct mse_dev *mse;
 
     int ret = 0;
 
     uint8_t reg = userbuf[0];
-    if(count > 2) {
+    uint8_t data[2];
+    if(len > 2) {
         pr_err("Tamaño del registro solicitado mayor a 2");
     }
     else {
         mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
 
-        ret = i2c_read_reg(mse->client, reg, userbuf, count);
+        ret = i2c_read_reg(mse->client, reg, data, len);
         if (ret < 0)
         {
             pr_err("Error al leer el registro: %d\n",ret);
+        }
+        else {
+            memcpy(userbuf, data, len);
         }
     }
     
