@@ -6,102 +6,224 @@
 
 /*====================================================================================================*/
 
-
-#define MAX_TEMP_D_CELSIUS 500
-#define TEMP_2_D_CELSIUS 20
-#define TEMP_1_D_CELSIUS 10
-#define TIME_TO_WAIT_FOR_CONV_IN_MS 1000
-
 /*====================================================================================================*/
 
-/**
- * @brief Initialize the ADC configuration for this custom application
- * 
- */
-static void InitADS111xDriver(void); // Ahora solo una declaración estática aquí
-
-/**
- * @brief Convert the raw data from the ADC to a temperature in Celsius
- * 
- * @param counts     The raw data from the ADC
- * @return uint16_t  The temperature in Celsius
- */
-static uint16_t ConutsToTemp(uint16_t counts);
-
-/**
- * @brief Convert temperature in Celsius to a raw data for the ADC
- * 
- * @param temp       Temperature in Celsius
- * @return uint16_t  The raw data for the ADC
- */
-static uint16_t TempToCounts(uint16_t temp);
-
-/**
- * @brief Set the New Set Treshold value
- * 
- * @param new_setpoint  The new setpoint value in Celsius
- */
-static void SetNewSetTreshold(uint16_t new_setpoint);
-
+// Declaración de funciones estáticas
+static void InitADS111xDriver(void);
 static void readADC(void);
+static void printMenu(void);
+static void handleMenuOption(int option);
+static void changeDataRate(void);
+static void changeMultiplexer(void);
+static void changeMode(void);
 
-/*====================================================================================================*/
-
-static ads111x_obj_t ads1115_0; ///< instance of ADS1115
-
-static uint16_t temperature_setpoint = 240; ///< The default temperature setpoint in deci Celsius
-
-/*====================================================================================================*/
-
+// Variables globales
+static ads111x_obj_t ads1115_0;
+static uint8_t single_mode = 1;
 
 int main(void)
 {
-    InitADS111xDriver();  // Inicializa el ADC
-    
-    while (1) {
-        readADC();  // Realiza una lectura del ADC en cada iteración del bucle
-    }
-    
+    InitADS111xDriver(); // Inicializar el ADC
+
+    int option;
+    do {
+        printMenu(); // Mostrar menú
+        printf("Ingrese la opción deseada: ");
+        scanf("%d", &option); // Leer la opción del usuario
+        getchar(); // Consumir el carácter de nueva línea
+
+        handleMenuOption(option); // Manejar la opción del menú
+
+    } while (option != 0); // Salir del bucle si el usuario elige la opción 0
+
     return 0;
 }
 
-/*====================================================================================================*/
-
-static void InitADS111xDriver(void) {
+// Función para inicializar el driver ADS111x
+static void InitADS111xDriver(void)
+{
     ads111x_i2c_t ads111x_port = PORT_Init();
-    ADS111x_Init(&ads1115_0, ADS111X_ADDR_0, ADS111X_PGA_4096, ADS1115, &ads111x_port); ///< Initialize the ADS1115 with address 0x48, PGA = 4096, and the ADS1115 as the device
-    ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_16SPS); ///< Set the data rate to 16 samples per second
-    ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN0_GND); ///< Select the Analog input to be AN0
-    ADS111x_SetMode(&ads1115_0, ADS111X_MODE_SINGLE); ///< Set the mode to single shot
-    ADS111x_SetComparatorQueue(&ads1115_0, ADS111X_COMP_QUE_2_CONV); ///< Set the comparator queue to 2 conversions
-    SetNewSetTreshold(temperature_setpoint); ///< Set the initial setpoint
-    ADS111x_StartConversion(&ads1115_0); ///< First conversion
+    ADS111x_Init(&ads1115_0, ADS111X_ADDR_0, ADS111X_PGA_4096, ADS1115, &ads111x_port);
+    ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_16SPS);
+    ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN0_GND);
+    ADS111x_SetMode(&ads1115_0, ADS111X_MODE_SINGLE);
+    single_mode = 1;
+    ADS111x_SetComparatorQueue(&ads1115_0, ADS111X_COMP_QUE_2_CONV);
+    ADS111x_StartConversion(&ads1115_0);
 }
 
-static uint16_t ConutsToTemp(uint16_t counts) {
-   return (counts * MAX_TEMP_D_CELSIUS) / 0x7FFF; //!< Convert the raw data to a temperature in Celsius
+// Función para realizar una lectura del ADC
+static void readADC(void)
+{   
+    if(single_mode) {
+        ADS111x_StartConversion(&ads1115_0);
+        sleep(1);
+    }
+    uint16_t adc_data = ADS111x_Read(&ads1115_0);
+    printf("\n\nData from ADC: %X \n\n", adc_data);
 }
 
-static uint16_t TempToCounts(uint16_t temp) {
-   return (temp * 0x7FFF) / MAX_TEMP_D_CELSIUS; //!< Convert the temperature in Celsius to a raw data for the ADC
+// Función para imprimir el menú de opciones
+static void printMenu(void)
+{
+    printf("\n--- Menú de Opciones ---\n");
+    printf("1. Realizar una lectura del ADC\n");
+    printf("2. Cambiar el data rate\n");
+    printf("3. Cambiar el multiplexer\n");
+    printf("4. Cambiar el modo de operación\n");
+    printf("0. Salir\n");
 }
 
-static void SetNewSetTreshold(uint16_t new_setpoint) {
-   uint16_t thesh_lo = TempToCounts(new_setpoint - TEMP_2_D_CELSIUS); //!< Set the low threshold to 2 degrees below the setpoint
-   uint16_t thesh_hi = TempToCounts(new_setpoint + TEMP_2_D_CELSIUS)  ; //!< Set the high threshold to 2 degrees above the setpoints
-   ADS111x_SetThresholdLow(&ads1115_0, thesh_lo);
-   ADS111x_SetThresholdHigh(&ads1115_0, thesh_hi);
+// Función para manejar la opción seleccionada por el usuario
+static void handleMenuOption(int option)
+{
+    switch (option)
+    {
+    case 1:
+        readADC(); // Realizar una lectura del ADC
+        break;
+    case 2:
+        changeDataRate(); // Cambiar el data rate
+        break;
+    case 3:
+        changeMultiplexer(); // Cambiar el multiplexer
+        break;
+    case 4:
+        changeMode(); // Cambiar el modo de operación
+        break;
+    case 0:
+        printf("Saliendo...\n");
+        break;
+    default:
+        printf("Opción no válida. Por favor, intente de nuevo.\n");
+        break;
+    }
 }
 
-static void readADC(void) {
-    uint16_t adc_data = ADS111x_Read(&ads1115_0); // Lee los datos del ADC
-    uint16_t temperature = ConutsToTemp(adc_data); // Convierte los datos del ADC a temperatura
+// Función para cambiar el data rate
+static void changeDataRate(void)
+{
+    printf("Seleccione el nuevo data rate:\n");
+    printf("1. 8 SPS\n");
+    printf("2. 16 SPS\n");
+    printf("3. 32 SPS\n");
+    printf("4. 64 SPS\n");
+    printf("5. 128 SPS\n");
+    printf("6. 250 SPS\n");
+    printf("7. 475 SPS\n");
+    printf("8. 860 SPS\n");
+    printf("Ingrese la opción deseada: ");
     
-    // Imprime la temperatura
-    printf("Temperature: %d Celsius\n", temperature);
-    
-    // Espera un tiempo antes de la próxima lectura del ADC
-    // Esto puede variar dependiendo de tus requisitos
-    // En este ejemplo, esperamos 1 segundo
-    sleep(1);
+    int option;
+    scanf("%d", &option);
+    getchar(); // Consumir el carácter de nueva línea
+
+    switch (option)
+    {
+    case 1:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_8SPS);
+        break;
+    case 2:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_16SPS);
+        break;
+    case 3:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_32SPS);
+        break;
+    case 4:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_64SPS);
+        break;
+    case 5:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_128SPS);
+        break;
+    case 6:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_250SPS);
+        break;
+    case 7:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_475SPS);
+        break;
+    case 8:
+        ADS111x_SetDataRate(&ads1115_0, ADS111X_DATA_RATE_860SPS);
+        break;
+    default:
+        printf("Opción no válida. El data rate no ha sido cambiado.\n");
+        break;
+    }
+}
+
+// Función para cambiar el multiplexor
+static void changeMultiplexer(void)
+{
+    printf("Seleccione el nuevo multiplexor:\n");
+    printf("1. AN0 to GND\n");
+    printf("2. AN1 to GND\n");
+    printf("3. AN2 to GND\n");
+    printf("4. AN3 to GND\n");
+    printf("5. AN0 to AN1\n");
+    printf("6. AN0 to AN3\n");
+    printf("7. AN1 to AN3\n");
+    printf("8. AN2 to AN3\n");
+    printf("Ingrese la opción deseada: ");
+
+    int option;
+    scanf("%d", &option);
+    getchar(); // Consumir el carácter de nueva línea
+
+    switch (option)
+    {
+    case 1:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN0_GND);
+        break;
+    case 2:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN1_GND);
+        break;
+    case 3:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN2_GND);
+        break;
+    case 4:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN3_GND);
+        break;
+    case 5:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN0_AN1);
+        break;
+    case 6:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN0_AN3);
+        break;
+    case 7:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN1_AN3);
+        break;
+    case 8:
+        ADS111x_SetMultiplexer(&ads1115_0, ADS111X_MUX_AN2_AN3);
+        break;
+    default:
+        printf("Opción no válida. El multiplexor no ha sido cambiado.\n");
+        break;
+    }
+}
+
+// Función para cambiar el modo de operación
+static void changeMode(void)
+{
+    printf("Seleccione el nuevo modo de operación:\n");
+    printf("1. Single-shot\n");
+    printf("2. Continuous\n");
+    printf("Ingrese la opción deseada: ");
+
+    int option;
+    scanf("%d", &option);
+    getchar(); // Consumir el carácter de nueva línea
+
+    switch (option)
+    {
+    case 1:
+        ADS111x_SetMode(&ads1115_0, ADS111X_MODE_SINGLE);
+        single_mode = 1;
+        break;
+    case 2:
+        ADS111x_SetMode(&ads1115_0, ADS111X_MODE_CONTINUOUS);
+        single_mode = 0;
+        break;
+    default:
+        printf("Opción no válida. El modo de operación no ha sido cambiado.\n");
+        break;
+    }
 }

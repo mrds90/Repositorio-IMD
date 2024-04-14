@@ -124,18 +124,6 @@ static long mse_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
     return 0;
 }
 
-static int mse_open(struct inode *inode, struct file *file)
-{
-    pr_info("mse_open() is called.\n");
-    return 0;
-};
-
-static int mse_close(struct inode *inode, struct file *file)
-{
-    pr_info("mse_close() is called.\n");
-    return 0;
-};
-
 /* declaracion de una estructura del tipo file_operations */
 
 static const struct file_operations mse_fops =
@@ -143,8 +131,6 @@ static const struct file_operations mse_fops =
     .owner = THIS_MODULE,
     .read = ads111x_read,
     .write = ads111x_write,
-    .open = mse_open,
-    .release = mse_close,
     .unlocked_ioctl = mse_ioctl,
 };
 
