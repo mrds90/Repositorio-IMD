@@ -1,9 +1,9 @@
-PROGRAM_PATH := $(CURDIR)/test_app
+PROGRAM_PATH := $(CURDIR)/ads111x
 DOC_PATH := $(CURDIR)/Documentation
 TESTDIR := $(CURDIR)/test
-NAME := ioctl_test
-NAME_HOST := ioctl_test
-NAME_TARGET := ioctl_test
+NAME := ads111x_test
+NAME_HOST := ads111x_test
+NAME_TARGET := ads111x_test
 BUILDDIR := $(CURDIR)/build
 CFLAGS := -Wall -g -static # Add the -g option for debugging information
 CC_HOST := gcc
@@ -28,6 +28,7 @@ host: $(BUILDDIR)
 
 target: $(BUILDDIR)
 	$(CC_TARGET) $(CFLAGS) $(addprefix -I,$(INCDIR)) $(APPLST) -o $(BUILDDIR)/$(NAME_TARGET).o
+	
 uncrustify:
 	uncrustify -c uncrustifyC.cfg --replace --no-backup -q --if-changed $(ALL_FILES)
 

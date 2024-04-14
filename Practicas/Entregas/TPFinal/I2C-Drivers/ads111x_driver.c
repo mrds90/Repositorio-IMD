@@ -3,6 +3,7 @@
 #include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/of.h>
+#include <linux/string.h>
 
 /* Private device structure */
 struct mse_dev
@@ -44,6 +45,25 @@ static int i2c_read_reg(struct i2c_client *client, uint8_t reg, uint8_t *data, s
     return i2c_transfer (client->adapter, msgs, 2);
 }
 
+static int i2c_write_reg(struct i2c_client *client, const char *data, size_t len) {
+
+    struct i2c_msg msgs[1];
+    
+    static char buff_to_send[255];
+    if(len>255){
+        return -1;
+    }
+    else {
+        memcpy(buff_to_send, data, len);
+        msgs[0].addr = client->addr;
+        msgs[0].flags = 0;
+        msgs[0].buf = buff_to_send;
+        msgs[0].len = len;
+
+        return i2c_transfer (client->adapter, msgs, 1);
+    }
+}
+
 /* User is reading data from /dev/msedrvXX */
 static ssize_t ads111x_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos) {
 
@@ -51,35 +71,38 @@ static ssize_t ads111x_read(struct file *file, char __user *userbuf, size_t coun
 
     int ret = 0;
 
-    uint8_t data[2];
-
-    mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
-
-    ret = i2c_read_reg(mse->client, *userbuf, data, sizeof(data));
-    if (ret < 0)
-    {
-        pr_err("Error al leer el registro: %d\n",ret);
+    uint8_t reg = userbuf[0];
+    if(count > 2) {
+        pr_err("Tamaño del registro solicitado mayor a 2");
     }
     else {
-        pr_info("data: %X", (uint16_t)(((uint16_t)data[0] << 8) | data[1]));
-    }
+        mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
 
-    return 0;
+        ret = i2c_read_reg(mse->client, reg, userbuf, count);
+        if (ret < 0)
+        {
+            pr_err("Error al leer el registro: %d\n",ret);
+        }
+    }
+    
+
+    return ret;
 }
 
 static ssize_t ads111x_write(struct file *file, const char __user *buffer, size_t len, loff_t *offset)
 {
     struct mse_dev *mse;
 
+    int ret = 0;
+
     mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
 
-    /*
-     * Aqui ira las llamadas a i2c_transfer() que correspondan pasando
-     * como dispositivo mse->client
-	*/
-
-    pr_info("mse_write() fue invocada.");
-    return 0;
+    ret = i2c_write_reg(mse->client, buffer, len);
+    if (ret < 0)
+    {
+        pr_err("Error al escribir el registro: %d\n",ret);
+    }
+    return ret;
 }
 
 static long mse_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
