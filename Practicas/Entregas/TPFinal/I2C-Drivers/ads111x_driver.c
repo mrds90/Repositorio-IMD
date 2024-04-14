@@ -5,214 +5,160 @@
 #include <linux/of.h>
 #include <linux/string.h>
 
-/* Private device structure */
-struct mse_dev
-{
+/*========= [PRIVATE DEVICE STRUCTURE] =========================================*/
+
+struct ads111x_dev {
 	struct i2c_client *client;
-	struct miscdevice mse_miscdevice;
-	char name[9]; /* msedrvXX */
+	struct miscdevice ads111x_misc_device;
+	char name[9]; /* ads111xXX */
 };
 
-/*
- * Definicion de los ID correspondientes al Device Tree. Estos deben ser informados al
- * kernel mediante la macro MODULE_DEVICE_TABLE
- *
- * NOTA: Esta seccion requiere que CONFIG_OF=y en el kernel
- */
+/*========= [DEVICE TREE IDENTIFIERS] ==========================================*/
 
-static const struct of_device_id mse_dt_ids[] =
-{
-    { .compatible = "mse,ads111x", },
+static const struct of_device_id ads111x_dt_ids[] = {
+    { .compatible = "ads111x", },
     { /* sentinel */ }
 };
 
-MODULE_DEVICE_TABLE(of, mse_dt_ids);
+MODULE_DEVICE_TABLE(of, ads111x_dt_ids);
+
+/*========= [I2C HELPER FUNCTIONS] =============================================*/
 
 static int i2c_read_reg(struct i2c_client *client, uint8_t reg, uint8_t *data, size_t len) {
     struct i2c_msg msgs[2];
 
-    
     uint8_t buf[1] = {reg};
+    
     msgs[0].addr = client->addr;
     msgs[0].flags = 0;
     msgs[0].buf = buf;
     msgs[0].len = sizeof(buf);
+
     msgs[1].addr = client->addr;
     msgs[1].flags = I2C_M_RD;
     msgs[1].buf = data;
     msgs[1].len = len;
 
-    return i2c_transfer (client->adapter, msgs, 2);
+    return i2c_transfer(client->adapter, msgs, 2);
 }
 
 static int i2c_write_reg(struct i2c_client *client, const char *data, size_t len) {
-
     struct i2c_msg msgs[1];
-    
-    static char buff_to_send[255];
-    if(len>255){
+    static char buff_to_send[3];
+    if (len > 3) {
         return -1;
-    }
-    else {
+    } else {
         memcpy(buff_to_send, data, len);
         msgs[0].addr = client->addr;
         msgs[0].flags = 0;
         msgs[0].buf = buff_to_send;
         msgs[0].len = len;
 
-        return i2c_transfer (client->adapter, msgs, 1);
+        return i2c_transfer(client->adapter, msgs, 1);
     }
 }
 
-/* User is reading data from /dev/msedrvXX */
+/*========= [FILE OPERATIONS] ===================================================*/
+
 static ssize_t ads111x_read(struct file *file, char __user *userbuf, size_t len, loff_t *ppos) {
-
-    struct mse_dev *mse;
-
+    struct ads111x_dev *ads111x;
     int ret = 0;
-
     uint8_t reg = userbuf[0];
     uint8_t data[2];
-    if(len > 2) {
-        pr_err("Tamaño del registro solicitado mayor a 2");
-    }
-    else {
-        mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
-
-        ret = i2c_read_reg(mse->client, reg, data, len);
-        if (ret < 0)
-        {
-            pr_err("Error al leer el registro: %d\n",ret);
-        }
-        else {
+    if (len > 2) {
+        pr_err("Requested register size greater than 2");
+    } else {
+        ads111x = container_of(file->private_data, struct ads111x_dev, ads111x_misc_device);
+        ret = i2c_read_reg(ads111x->client, reg, data, len);
+        if (ret < 0) {
+            pr_err("Error reading register: %d\n", ret);
+        } else {
             memcpy(userbuf, data, len);
         }
     }
-    
-
     return ret;
 }
 
-static ssize_t ads111x_write(struct file *file, const char __user *buffer, size_t len, loff_t *offset)
-{
-    struct mse_dev *mse;
-
+static ssize_t ads111x_write(struct file *file, const char __user *buffer, size_t len, loff_t *offset) {
+    struct ads111x_dev *ads111x;
     int ret = 0;
-
-    mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
-
-    ret = i2c_write_reg(mse->client, buffer, len);
-    if (ret < 0)
-    {
-        pr_err("Error al escribir el registro: %d\n",ret);
+    ads111x = container_of(file->private_data, struct ads111x_dev, ads111x_misc_device);
+    ret = i2c_write_reg(ads111x->client, buffer, len);
+    if (ret < 0) {
+        pr_err("Error writing register: %d\n", ret);
     }
     return ret;
 }
 
-static long mse_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
-{
-    struct mse_dev *mse;
-
-    mse = container_of(file->private_data, struct mse_dev, mse_miscdevice);
-
+static long ads111x_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+    struct ads111x_dev *ads111x;
+    ads111x = container_of(file->private_data, struct ads111x_dev, ads111x_misc_device);
     /*
-     * Aqui ira las llamadas a i2c_transfer() que correspondan pasando
-     * como dispositivo mse->client
-    */
-
-    pr_info("mse_ioctl() fue invocada. cmd = %d, arg = %ld\n", cmd, arg);
+     * Here will be the calls to i2c_transfer() as appropriate
+     * passing ads111x->client as the device
+     */
+    pr_info("Ads111xIoctl() was invoked. cmd = %d, arg = %ld\n", cmd, arg);
     return 0;
 }
 
-/* declaracion de una estructura del tipo file_operations */
-
-static const struct file_operations mse_fops =
-{
+static const struct file_operations ads111x_fops = {
     .owner = THIS_MODULE,
     .read = ads111x_read,
     .write = ads111x_write,
-    .unlocked_ioctl = mse_ioctl,
+    .unlocked_ioctl = ads111x_ioctl,
 };
 
-/*--------------------------------------------------------------------------------*/
+/*========= [DRIVER PROBE AND REMOVE FUNCTIONS] ================================*/
 
-static int mse_probe(struct i2c_client *client, const struct i2c_device_id *id)
-{
-    struct mse_dev *mse;
+static int ads111x_probe(struct i2c_client *client, const struct i2c_device_id *id) {
+    struct ads111x_dev *ads111x;
     static int counter = 0;
     int ret_val;
 
-    /* Allocate new private structure */
-    mse = devm_kzalloc(&client->dev, sizeof(struct mse_dev), GFP_KERNEL);
+    ads111x = devm_kzalloc(&client->dev, sizeof(struct ads111x_dev), GFP_KERNEL);
+    i2c_set_clientdata(client, ads111x);
+    ads111x->client = client;
 
-    /* Store pointer to the device-structure in bus device context */
-    i2c_set_clientdata(client,mse);
+    sprintf(ads111x->name, "ads111x%02d", counter++);
 
-	/* Store pointer to I2C client device in the private structure */
-	mse->client = client;
+    ads111x->ads111x_misc_device.name = ads111x->name;
+    ads111x->ads111x_misc_device.minor = MISC_DYNAMIC_MINOR;
+    ads111x->ads111x_misc_device.fops = &ads111x_fops;
 
-    /* Initialize the misc device, mse is incremented after each probe call */
-    sprintf(mse->name, "ads111x%02d", counter++);
-
-    mse->mse_miscdevice.name = mse->name;
-    mse->mse_miscdevice.minor = MISC_DYNAMIC_MINOR;
-    mse->mse_miscdevice.fops = &mse_fops;
-
-    /* Register misc device */
-    ret_val = misc_register(&mse->mse_miscdevice);
-
-    if (ret_val != 0)
-    {
-        pr_err("No se pudo registrar el dispositivo %s\n", mse->mse_miscdevice.name);
+    ret_val = misc_register(&ads111x->ads111x_misc_device);
+    if (ret_val != 0) {
+        pr_err("Failed to register device %s\n", ads111x->ads111x_misc_device.name);
         return ret_val;
     }
 
-    pr_info("Dispositivo %s: minor asignado: %i\n", mse->mse_miscdevice.name, mse->mse_miscdevice.minor);
+    pr_info("Device %s: assigned minor: %i\n", ads111x->ads111x_misc_device.name, ads111x->ads111x_misc_device.minor);
 
     return 0;
 }
 
-static void mse_remove(struct i2c_client * client)
-{
-    struct mse_dev * mse;
-
-    /* Get device structure from bus device context */
-    mse = i2c_get_clientdata(client);
-
-    /* Deregister misc device */
-    misc_deregister(&mse->mse_miscdevice);
+static void ads111x_remove(struct i2c_client *client) {
+    struct ads111x_dev *ads111x;
+    ads111x = i2c_get_clientdata(client);
+    misc_deregister(&ads111x->ads111x_misc_device);
 }
 
-/*--------------------------------------------------------------------------------*/
+/*========= [DRIVER STRUCTURES] ================================================*/
 
-static struct i2c_driver mse_driver =
-{
-    .probe= mse_probe,
-    .remove= mse_remove,
-    .driver =
-    {
+static struct i2c_driver ads111x_driver = {
+    .probe = ads111x_probe,
+    .remove = ads111x_remove,
+    .driver = {
         .name = "ads111x_driver",
         .owner = THIS_MODULE,
-        .of_match_table = of_match_ptr(mse_dt_ids),
+        .of_match_table = of_match_ptr(ads111x_dt_ids),
     },
 };
 
-/*----------------------------------------------------------------------*/
+/*========= [MODULE INITIALIZATION AND CLEANUP] ================================*/
 
+module_i2c_driver(ads111x_driver);
 
-
-/**********************************************************************
- * Esta seccion define cuales funciones seran las ejecutadas al cargar o
- * remover el modulo respectivamente. Es hecho implicitamente,
- * termina declarando init() exit()
- **********************************************************************/
-module_i2c_driver(mse_driver);
-
-/**********************************************************************
- * Seccion sobre Informacion del modulo
- **********************************************************************/
 MODULE_AUTHOR("Marcos Dominguez <mrds0690@gmail.com>");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Este modulo es un driver para IMD");
-MODULE_INFO(mse_imd, "Esto no es para simples mortales");
-
+MODULE_DESCRIPTION("This module is a driver for IMD");
+MODULE_INFO(ads111x_imd, "This is not for mere mortals");

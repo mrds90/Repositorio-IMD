@@ -30,17 +30,12 @@ int i2c_MasterSend(uint8_t slaveAddr, const uint8_t *buff, uint8_t len) {
     int ads111x_dev = open("/dev/ads111x00", O_WRONLY);
     int ret = 0;
 
-    if (ads111x_dev < 0)
-    {
+    if (ads111x_dev < 0) {
         perror("Fail to open device file: /dev/ads111x00.");
+        ret = -1;
     }
-    else
-    {
+    else {
         ret = write(ads111x_dev, buff, len);
-        if (ret < 0) {
-            ret = -1;
-
-        }
         close(ads111x_dev);
     }
 
@@ -51,24 +46,18 @@ int i2c_MasterReceive(uint8_t slaveAddr, uint8_t reg, uint8_t *buff, uint8_t len
     int ads111x_dev = open("/dev/ads111x00", O_RDWR);
     int ret = 0;
 
-    if (ads111x_dev < 0)
-    {
+    if (ads111x_dev < 0) {
         perror("Fail to open device file: /dev/ads111x00.");
+        ret = -1;
     }
-    else
-    {
+    else {
         buff[0] = reg;
         ret = read(ads111x_dev, buff, len);
-        if (ret < 0) {
-            ret = -1;
-
-        }
         close(ads111x_dev);
     }
 
     return ret;
 }
-
 
 /*=====[Implementations of private functions]================================*/
 

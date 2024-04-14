@@ -23,7 +23,7 @@ extern "C" {
 
 /*=====[Definition macros of public constants]===============================*/
 
-#define ADS111x_CONFIG_ERROR      0xFF
+#define ADS111x_CONFIG_ERROR      -1
 #define ADS111x_CONFIG_SUCCESS    0x00
 
 
@@ -32,22 +32,21 @@ extern "C" {
 
 /*=====[Definitions of public data types]====================================*/
 typedef void (*I2C_INITIALIZATION)(void);
-typedef void (*I2C_WRITE)(uint8_t, uint8_t, uint16_t);
-typedef void (*I2C_READ)(uint8_t, uint8_t, uint16_t*);
+typedef int (*I2C_WRITE)(uint8_t, uint8_t, uint16_t);
+typedef int (*I2C_READ)(uint8_t, uint8_t, uint16_t *);
 
 /**
  * @brief ADS111x Hal driver
- * 
  */
 typedef struct {
     I2C_INITIALIZATION Init;
     I2C_WRITE Write; // Write function pointer (addr,reg, data)
-    I2C_READ  WriteRead; // WriteRead function pointer (addt, reg, *data)
+    I2C_READ WriteRead;  // WriteRead function pointer (addt, reg, *data)
 } ads111x_i2c_t;
 
 /**
  * @brief ADS111x device options
- * 
+ *
  */
 typedef enum {
     ADS1113 = 1,
@@ -57,10 +56,10 @@ typedef enum {
 
 /**
  * @brief ADS111x address options
- * 
+ *
  */
 typedef enum {
-    ADS111X_ADDR_0 = 0x48, 
+    ADS111X_ADDR_0 = 0x48,
     ADS111X_ADDR_1 = 0x49,
     ADS111X_ADDR_2 = 0x4A,
     ADS111X_ADDR_3 = 0x4B,
@@ -68,7 +67,7 @@ typedef enum {
 
 /**
  * @brief ADS111x registers
- * 
+ *
  */
 typedef enum {
     ADS111X_CONVERSION_REG = 0x00,
@@ -78,7 +77,7 @@ typedef enum {
 } ads111x_reg_t;
 /**
  * @brief ADS111x gain options
- * 
+ *
  */
 typedef enum {
     ADS111X_PGA_6144 = 0x00,
@@ -91,7 +90,7 @@ typedef enum {
 
 /**
  * @brief ADS111x conversion options
- * 
+ *
  */
 typedef enum {
     ADS111X_MODE_CONTINUOUS = 0x00,
@@ -99,7 +98,7 @@ typedef enum {
 } ads111x_mode_t;
 /**
  * @brief ADS111x conversion rate options
- * 
+ *
  */
 typedef enum {
     ADS111X_DATA_RATE_8SPS = 0x00,
@@ -114,7 +113,7 @@ typedef enum {
 
 /**
  * @brief ADS111x comparator mode options
- * 
+ *
  */
 typedef enum {
     ADS111X_COMP_MODE_TRADITIONAL = 0x00,
@@ -123,7 +122,7 @@ typedef enum {
 
 /**
  * @brief ADS111x comparator polarity options
- * 
+ *
  */
 typedef enum {
     ADS111X_COMP_POL_ACTIVE_LOW = 0x00,
@@ -132,7 +131,7 @@ typedef enum {
 
 /**
  * @brief ADS111x comparator latch options
- * 
+ *
  */
 typedef enum {
     ADS111X_COMP_LAT_NON_LATCHING = 0x00,
@@ -140,7 +139,7 @@ typedef enum {
 } ads111x_comp_lat_t;
 /**
  * @brief ADS111x comparator queue options
- * 
+ *
  */
 typedef enum {
     ADS111X_COMP_QUE_1_CONV = 0x00,
@@ -151,7 +150,7 @@ typedef enum {
 
 /**
  * @brief ADS111x Analog input options
- * 
+ *
  */
 typedef enum {
     ADS111X_MUX_AN0_AN1 = 0x00,
@@ -166,7 +165,7 @@ typedef enum {
 
 /**
  * @brief ADS111x start conversion order
- * 
+ *
  */
 typedef enum {
     ADS111X_DO_NOTHING = 0x00,
@@ -175,7 +174,7 @@ typedef enum {
 
 /**
  * @brief ADS111x configuration fields
- * 
+ *
  */
 typedef enum {
     ADS111X_CONFIG_FIELD_COMP_QUE,
@@ -189,11 +188,11 @@ typedef enum {
     ADS111X_CONFIG_FIELD_OS,
 
     ADS111X_CONFIG_FIELD_QTY,
-}ads111x_config_field_t;
+} ads111x_config_field_t;
 
 /**
  * @brief ADS111x configuration structure
- * 
+ *
  */
 typedef struct {
     uint16_t configuration;
@@ -204,98 +203,121 @@ typedef struct {
 /*=====[Prototypes (declarations) of public functions]=======================*/
 /**
  * @brief Iinitialize ADS111x device with default values except for the device type, gain and device address
- * 
+ *
  * @param ptr_asd111x ADS111x device object
  * @param i2c_address ADS111x device address
  * @param gain        ADS111x gain
  * @param device      ADS111x device type
  * @param port        Driver comunication functions
- * @return uint8_t 
+ * @return int
  */
-uint8_t ADS111x_Init(ads111x_obj_t *ptr_asd111x, ads111x_addr_t i2c_address, ads111x_pga_t gain, ads111x_device_t device, ads111x_i2c_t *port);
+int ADS111x_Init(ads111x_obj_t *ptr_asd111x, ads111x_addr_t i2c_address, ads111x_pga_t gain, ads111x_device_t device, ads111x_i2c_t *port);
+
 /**
  * @brief Start conversion order on ADS111x device
- * 
+ *
  * @param ptr_asd111x ADS111x device object
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_StartConversion(ads111x_obj_t *ptr_asd111x);
+int ADS111x_StartConversion(ads111x_obj_t *ptr_asd111x);
+
 /**
  * @brief Read conversion result from ADS111x device
- * 
+ *
  * @param ptr_asd111x ADS111x device object
  * @return int16_t    Result of conversion
  */
 int16_t ADS111x_Read(ads111x_obj_t *ptr_asd111x);
+
 /**
  * @brief ADS111x low threshold used in comparator mode
- * 
+ *
  * @param ptr_asd111x  ADS111x device object
  * @param threshold    Threshold value
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetThresholdLow(ads111x_obj_t *ptr_asd111x, uint16_t threshold);
+int ADS111x_SetThresholdLow(ads111x_obj_t *ptr_asd111x, uint16_t threshold);
+
 /**
  * @brief ADS111x high threshold used in comparator mode
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param threshold     Threshold value
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetThresholdHigh(ads111x_obj_t *ptr_asd111x, uint16_t threshold);
+int ADS111x_SetThresholdHigh(ads111x_obj_t *ptr_asd111x, uint16_t threshold);
+
 /**
  * @brief ADS111x Analog input selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param mux           Analog input selection value (see ads111x_mux_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetMultiplexer(ads111x_obj_t *ptr_asd111x, ads111x_mux_t mux);
+int ADS111x_SetMultiplexer(ads111x_obj_t *ptr_asd111x, ads111x_mux_t mux);
+
 /**
  * @brief ADS111x Gain selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param gain          Gain selection value (see ads111x_pga_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetGain(ads111x_obj_t *ptr_asd111x, ads111x_pga_t gain);
+int ADS111x_SetGain(ads111x_obj_t *ptr_asd111x, ads111x_pga_t gain);
+
 /**
  * @brief ADS111x Sample rate selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param dr            Sample rate selection value (see ads111x_dr_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetDataRate(ads111x_obj_t *ptr_asd111x, ads111x_data_rate_t dr);
+int ADS111x_SetDataRate(ads111x_obj_t *ptr_asd111x, ads111x_data_rate_t dr);
+
 /**
  * @brief ADS111x Operating mode selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param mode          Single-shot or continuous mode selection value (see ads111x_mode_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetMode(ads111x_obj_t *ptr_asd111x, ads111x_mode_t mode);
+int ADS111x_SetMode(ads111x_obj_t *ptr_asd111x, ads111x_mode_t mode);
+
 /**
  * @brief ADS111x Comparator mode selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param mode          Comparator mode selection value (see ads111x_comp_mode_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetComparatorMode(ads111x_obj_t *ptr_asd111x, ads111x_comp_mode_t mode);
+int ADS111x_SetComparatorMode(ads111x_obj_t *ptr_asd111x, ads111x_comp_mode_t mode);
+
 /**
  * @brief ADS111x Comparator polarity selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param polarity      Comparator polarity selection value (see ads111x_comp_pol_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetComparatorPolarity(ads111x_obj_t *ptr_asd111x, ads111x_comp_pol_t pol);
+int ADS111x_SetComparatorPolarity(ads111x_obj_t *ptr_asd111x, ads111x_comp_pol_t pol);
+
 /**
  * @brief ADS111x Comparator Latch selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param lat           Comparator Latch selection value (see ads111x_comp_lat_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetComparatorLatching(ads111x_obj_t *ptr_asd111x, ads111x_comp_lat_t lat);
+int ADS111x_SetComparatorLatching(ads111x_obj_t *ptr_asd111x, ads111x_comp_lat_t lat);
+
 /**
  * @brief ADS111x Comparator queue selection
- * 
+ *
  * @param ptr_asd111x   ADS111x device object
  * @param queue         Comparator queue selection value (see ads111x_comp_queue_t)
+ * @return int          0 if everything is ok, otherwise -1.
  */
-void ADS111x_SetComparatorQueue(ads111x_obj_t *ptr_asd111x, ads111x_comp_que_t que);
+int ADS111x_SetComparatorQueue(ads111x_obj_t *ptr_asd111x, ads111x_comp_que_t que);
 
 /*=====[C++ - end]===========================================================*/
 

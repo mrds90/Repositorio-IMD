@@ -7,6 +7,7 @@
 /*=====[Inclusions of function dependencies]=================================*/
 
 #include "ads111x_driver.h"
+#include <stdio.h>
 
 /*=====[Definition macros of private constants]==============================*/
 #define ADS111X_GENERAL_CALL_ADDR 0x00
@@ -37,11 +38,12 @@
 #define ADS111X_CONFIG_FIELD_OS_MASK (0x01 << ADS111X_CONFIG_FIELD_OS_BIT)
 /*=====[Definitions of private functions]====================================*/
 
-static void ADS111x_WriteRegister(ads111x_addr_t i2c_address, ads111x_reg_t reg, uint16_t value);
+static int ADS111x_WriteRegister(ads111x_addr_t i2c_address, ads111x_reg_t reg, uint16_t value);
 
 static uint16_t ADS111x_ReadRegister(uint8_t i2c_address, uint8_t reg);
 
-static void ADS111x_SetConfiguration(ads111x_obj_t *ptr_asd111x, ads111x_config_field_t field, uint8_t field_config);
+static int ADS111x_SetConfiguration(ads111x_obj_t *ptr_asd111x, ads111x_config_field_t field, uint8_t field_config);
+
 /*=====[Definitions of extern global variables]==============================*/
 
 /*=====[Definitions of public global variables]==============================*/
@@ -72,99 +74,118 @@ static const uint16_t ads111x_config_bit[ADS111X_CONFIG_FIELD_QTY] = {
 };
 /*=====[Implementation of public functions]==================================*/
 
-uint8_t ADS111x_Init(ads111x_obj_t *ptr_asd111x, ads111x_addr_t i2c_address, ads111x_pga_t gain, ads111x_device_t device, ads111x_i2c_t *port) {
-    uint8_t result = ADS111x_CONFIG_ERROR;
+int ADS111x_Init(ads111x_obj_t *ptr_asd111x, ads111x_addr_t i2c_address, ads111x_pga_t gain, ads111x_device_t device, ads111x_i2c_t *port) {
+    int result = ADS111x_CONFIG_ERROR;
     if (port != NULL) {
         ads111x_i2c = *port;
         port->Init();
     }
-    if (ptr_asd111x!=NULL) {
+    if (ptr_asd111x != NULL) {
         ptr_asd111x->device = device;
         ptr_asd111x->i2c_address = i2c_address;
         ptr_asd111x->configuration = ADS_111x_RESET_CONFIG & (~ADS111X_CONFIG_FIELD_OS_MASK);
-        ADS111x_SetGain(ptr_asd111x, gain);
-        result = ADS111x_CONFIG_SUCCESS;
+        if (ADS111x_SetGain(ptr_asd111x, gain) >= 0) {
+            result = ADS111x_CONFIG_SUCCESS;
+        }
     }
 
     return result;
 }
 
-void ADS111x_StartConversion(ads111x_obj_t *ptr_asd111x) {
-    ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_OS, ADS111X_START_CONVERSION);
-    ptr_asd111x->configuration &=~ADS111X_CONFIG_FIELD_OS_MASK; // Clear OS bit to avoid unnecessary conversion cmd when a configuration is performed
+int ADS111x_StartConversion(ads111x_obj_t *ptr_asd111x) {
+    if (ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_OS, ADS111X_START_CONVERSION)) {
+        return ADS111x_CONFIG_ERROR;
+    }
+    ptr_asd111x->configuration &= ~ADS111X_CONFIG_FIELD_OS_MASK; // Clear OS bit to avoid unnecessary conversion cmd when a configuration is performed
+    return 0;
 }
 
 int16_t ADS111x_Read(ads111x_obj_t *ptr_asd111x) {
-    int16_t data = 0;
-    data = ADS111x_ReadRegister(ptr_asd111x->i2c_address,ADS111X_CONVERSION_REG);   
+    int16_t data;
+    data = ADS111x_ReadRegister(ptr_asd111x->i2c_address, ADS111X_CONVERSION_REG);
+    if (data == -1) {
+        printf("Data could't be read");
+    }
     return data;
 }
 
-
-void ADS111x_SetThresholdLow(ads111x_obj_t *ptr_asd111x, uint16_t threshold) {
-    ADS111x_WriteRegister(ptr_asd111x->i2c_address,ADS111X_LO_THRESH_REG,threshold);
+int ADS111x_SetThresholdLow(ads111x_obj_t *ptr_asd111x, uint16_t threshold) {
+    return ADS111x_WriteRegister(ptr_asd111x->i2c_address, ADS111X_LO_THRESH_REG, threshold);
 }
 
-void ADS111x_SetThresholdHigh(ads111x_obj_t *ptr_asd111x, uint16_t threshold) {
-    ADS111x_WriteRegister(ptr_asd111x->i2c_address,ADS111X_HI_THRESH_REG,threshold);
+int ADS111x_SetThresholdHigh(ads111x_obj_t *ptr_asd111x, uint16_t threshold) {
+    return ADS111x_WriteRegister(ptr_asd111x->i2c_address, ADS111X_HI_THRESH_REG, threshold);
 }
 
-void ADS111x_SetMultiplexer(ads111x_obj_t *ptr_asd111x, ads111x_mux_t mux) {
-    ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_MUX, mux);
+int ADS111x_SetMultiplexer(ads111x_obj_t *ptr_asd111x, ads111x_mux_t mux) {
+    return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_MUX, mux);
 }
 
-void ADS111x_SetGain(ads111x_obj_t *ptr_asd111x, ads111x_pga_t gain) {
-    ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_PGA, gain);
+int ADS111x_SetGain(ads111x_obj_t *ptr_asd111x, ads111x_pga_t gain) {
+    return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_PGA, gain);
 }
 
-void ADS111x_SetDataRate(ads111x_obj_t *ptr_asd111x, ads111x_data_rate_t dr) {
-    ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_DR, dr);
+int ADS111x_SetDataRate(ads111x_obj_t *ptr_asd111x, ads111x_data_rate_t dr) {
+    return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_DR, dr);
 }
 
-void ADS111x_SetMode(ads111x_obj_t *ptr_asd111x, ads111x_mode_t mode) {
-    ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_MODE, mode);
+int ADS111x_SetMode(ads111x_obj_t *ptr_asd111x, ads111x_mode_t mode) {
+    return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_MODE, mode);
 }
 
-void ADS111x_SetComparatorMode(ads111x_obj_t *ptr_asd111x, ads111x_comp_mode_t mode) {
-    if(ptr_asd111x->device != ADS1113) {
-        ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_MODE, mode);
+int ADS111x_SetComparatorMode(ads111x_obj_t *ptr_asd111x, ads111x_comp_mode_t mode) {
+    if (ptr_asd111x->device != ADS1113) {
+        return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_MODE, mode);
     }
+    return ADS111x_CONFIG_ERROR;
 }
 
-void ADS111x_SetComparatorPolarity(ads111x_obj_t *ptr_asd111x, ads111x_comp_pol_t pol) {
-    if(ptr_asd111x->device != ADS1113) {
-        ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_POL, pol);
+int ADS111x_SetComparatorPolarity(ads111x_obj_t *ptr_asd111x, ads111x_comp_pol_t pol) {
+    if (ptr_asd111x->device != ADS1113) {
+        return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_POL, pol);
     }
-}
-void ADS111x_SetComparatorLatching(ads111x_obj_t *ptr_asd111x, ads111x_comp_lat_t lat) {
-    if(ptr_asd111x->device != ADS1113) {
-        ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_LAT, lat);
-    }
+    return ADS111x_CONFIG_ERROR;
 }
 
-void ADS111x_SetComparatorQueue(ads111x_obj_t *ptr_asd111x, ads111x_comp_que_t que) {
-    if(ptr_asd111x->device != ADS1113) {
-        ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_QUE, que);
+int ADS111x_SetComparatorLatching(ads111x_obj_t *ptr_asd111x, ads111x_comp_lat_t lat) {
+    if (ptr_asd111x->device != ADS1113) {
+        return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_LAT, lat);
     }
+    return ADS111x_CONFIG_ERROR;
+}
+
+int ADS111x_SetComparatorQueue(ads111x_obj_t *ptr_asd111x, ads111x_comp_que_t que) {
+    if (ptr_asd111x->device != ADS1113) {
+        return ADS111x_SetConfiguration(ptr_asd111x, ADS111X_CONFIG_FIELD_COMP_QUE, que);
+    }
+    return ADS111x_CONFIG_ERROR;
 }
 
 /*=====[Implementations of private functions]===============================*/
 
-static void ADS111x_WriteRegister(ads111x_addr_t i2c_address, ads111x_reg_t reg, uint16_t value) {
-    ads111x_i2c.Write(i2c_address, reg, value);
+static int ADS111x_WriteRegister(ads111x_addr_t i2c_address, ads111x_reg_t reg, uint16_t value) {
+    int ret = 0;
+    if (ads111x_i2c.Write(i2c_address, reg, value) < 0) {
+        printf("error writing reg: %X\n", reg);
+        ret = ADS111x_CONFIG_ERROR;
+    }
+    return ret;
 }
 
 static uint16_t ADS111x_ReadRegister(uint8_t i2c_address, uint8_t reg) {
-    uint16_t value = 0;
-    ads111x_i2c.WriteRead(i2c_address, reg, &value);
+    uint16_t value;
+    if (ads111x_i2c.WriteRead(i2c_address, reg, &value) < 0) {
+        value = ADS111x_CONFIG_ERROR;
+        printf("error reading reg: %X\n", reg);
+    }
     return value;
-  
 }
 
-static void ADS111x_SetConfiguration(ads111x_obj_t *ptr_asd111x, ads111x_config_field_t field, uint8_t field_config) {
-    if (field_config <= (ads111x_config_mask[field]>>ads111x_config_bit[field])) {
+static int ADS111x_SetConfiguration(ads111x_obj_t *ptr_asd111x, ads111x_config_field_t field, uint8_t field_config) {
+    if (field_config <= (ads111x_config_mask[field] >> ads111x_config_bit[field])) {
         ptr_asd111x->configuration &= ~(ads111x_config_mask[field]);
         ptr_asd111x->configuration |= field_config << ads111x_config_bit[field];
-        ADS111x_WriteRegister(ptr_asd111x->i2c_address,ADS111X_CONFIG_REG,ptr_asd111x->configuration);
+        return ADS111x_WriteRegister(ptr_asd111x->i2c_address, ADS111X_CONFIG_REG, ptr_asd111x->configuration);
     }
+    return ADS111x_CONFIG_ERROR;
 }
