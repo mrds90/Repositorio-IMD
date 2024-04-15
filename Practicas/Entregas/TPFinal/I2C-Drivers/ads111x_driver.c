@@ -16,7 +16,7 @@ struct ads111x_dev {
 /*========= [DEVICE TREE IDENTIFIERS] ==========================================*/
 
 static const struct of_device_id ads111x_dt_ids[] = {
-    { .compatible = "ads111x", },
+    { .compatible = "mse,ads111x", },
     { /* sentinel */ }
 };
 
