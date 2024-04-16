@@ -10,7 +10,7 @@
 struct ads111x_dev {
     struct i2c_client *client;
     struct miscdevice ads111x_misc_device;
-    char name[10]; /* ads111xXX */
+    char name[sizeof("ads111xXX")]; /* ads111xXX */
 };
 
 /*========= [DEVICE TREE IDENTIFIERS] ==========================================*/
